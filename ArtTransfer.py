@@ -109,9 +109,9 @@ def train_step(image):
 #Main Function##################################################################################################################################################################
 #Take input arguments
 ap = argparse.ArgumentParser()
-ap.add_argument('-c', '--content_path', default = tf.keras.utils.get_file('YellowLabradorLooking_new.jpg', 'https://storage.googleapis.com/download.tensorflow.org/example_images/YellowLabradorLooking_new.jpg'), 
+ap.add_argument('-c', '--content_path', default = "./data/content/bridge.jpeg", 
                 help='please input the path to content image')
-ap.add_argument('-s', '--style_path', default=tf.keras.utils.get_file('kandinsky5.jpg','https://storage.googleapis.com/download.tensorflow.org/example_images/Vassily_Kandinsky%2C_1913_-_Composition_7.jpg'),
+ap.add_argument('-s', '--style_path', default = "./data/content/starry.jpeg",
                 help='please input the path to style image')
 ap.add_argument('-e', '--epoch', default=10, type=int,
                 help='please set the epochs')
