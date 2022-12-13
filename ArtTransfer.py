@@ -1,3 +1,10 @@
+#Please use python ArtTransfer.py to run this code
+#To load the file, please use python ArtTransfer.py -c <path_to_style_image> -s <path_to_content_image> to load images
+#For example, python ArtTransfer.py -c ./data/content/bridge.jpeg -s ./data/content/starry.jpeg
+#To change epoch and steps per epoch, use python ArtTransfer.py -e <epoch time> -t <steps per epoch>
+#For example if you want 30 epoch with 50 steps per epoch, python ArtTransfer.py -e 30 -t 50
+#Thank you for using this code!
+#Runyu Gao Machine Learning Project Source Code
 import os
 import argparse
 import tensorflow as tf
@@ -19,6 +26,7 @@ def TensorToImage(tensor):
     tensor = tensor[0]
   return PIL.Image.fromarray(tensor)
 
+
 def LoadImage(PathToImage):
   img = tf.io.read_file(PathToImage)
   img = tf.image.decode_image(img, channels=3)
@@ -28,10 +36,12 @@ def LoadImage(PathToImage):
   resImage = img[tf.newaxis, :]
   return resImage
 
+
 def SaveImage(image, title=None):
   if len(image.shape) > 3:
     image = tf.squeeze(image, axis=0)
   tf.keras.utils.save_img(title,image)
+
 
 #Function about VGG##################################################################################################################################################################
 def VGGLayers(LayerName):
@@ -42,21 +52,24 @@ def VGGLayers(LayerName):
     outputs.append(vgg.get_layer(name).output)
   return tf.keras.Model([vgg.input], outputs)
 
+
 def GramMatrix(InputTensor):
   result = tf.linalg.einsum('bijc,bijd->bcd', InputTensor, InputTensor)
   input_shape = tf.shape(InputTensor)
   num_locations = tf.cast(input_shape[1]*input_shape[2], tf.float32)
   return result/(num_locations)
 
+
 #Style Content Model##################################################################################################################################################################
-class StyledContentModel(tf.keras.models.Model):
+class StyleContentModel(tf.keras.models.Model):
   def __init__(self, StyleLayers, ContentLayers):
-    super(StyledContentModel, self).__init__()
+    super(StyleContentModel, self).__init__()
     self.vgg = VGGLayers(StyleLayers + ContentLayers)
+    self.vgg.trainable = False
     self.StyleLayers = StyleLayers
     self.ContentLayers = ContentLayers
     self.NumStyleLayer = len(StyleLayers)
-    self.vgg.trainable = False
+   
 
   def call(self, inputs):
     "Expects float input in [0,1]"
@@ -68,7 +81,8 @@ class StyledContentModel(tf.keras.models.Model):
     StyleDict = {style_name: value for style_name, value in zip(self.StyleLayers, StyleOutputs)}
     return {'content': ContentDict, 'style': StyleDict}
 
-#Loss Function##################################################################################################################################################################
+
+#Loss Function and training step##################################################################################################################################################################
 def StyleContentLoss(outputs):
     StyleOutputs = outputs['style']
     ContentOutputs = outputs['content']
@@ -78,7 +92,8 @@ def StyleContentLoss(outputs):
     ContentLoss *= 1e4
     loss = StyleLoss + ContentLoss
     return loss
-    
+ 
+
 opt = tf.keras.optimizers.Adam(learning_rate=0.02, beta_1=0.99, epsilon=1e-1)
 @tf.function()
 def train_step(image):
@@ -107,8 +122,6 @@ args = ap.parse_args()
 #Load and show the content image and the style image
 ContentImage = LoadImage(args.content_path)
 StyleImage = LoadImage(args.style_path)
-#SaveImage(ContentImage, 'ContentImage.png')
-#SaveImage(StyleImage, 'StyleImage.png')
 
 #Preprocess and resize the image
 x = tf.keras.applications.vgg19.preprocess_input(ContentImage*255)
@@ -123,10 +136,25 @@ for l in vgg.layers:
 ContentLayers = ['block5_conv2'] 
 StyleLayers = ['block1_conv1', 'block2_conv1', 'block3_conv1', 'block4_conv1', 'block5_conv1']
 
-#Using 
+#Using VGG and models
 StyleExtractor = VGGLayers(StyleLayers)
 StyleOutputs = StyleExtractor(StyleImage*255)
-extractor = StyledContentModel(StyleLayers, ContentLayers)
+extractor = StyleContentModel(StyleLayers, ContentLayers)
+results = extractor(tf.constant(ContentImage))
+print('\nStyles:\n')
+for Layer_Name, Outp in sorted(results['style'].items()):
+  print(Layer_Name)
+  print("Styles shape: {}".format(Outp.numpy().shape))
+  print("Styles min: {}".format(Outp.numpy().min()))
+  print("Styles max: {}".format(Outp.numpy().max()))
+  print("Styles mean: {}".format(Outp.numpy().mean()))
+print("\nContents:\n")
+for Layer_Name, Outp in sorted(results['content'].items()):
+  print(Layer_Name)
+  print("Contents shape: {}".format(Outp.numpy().shape))
+  print("Contents min: {}".format(Outp.numpy().min()))
+  print("Contents max: {}".format(Outp.numpy().max()))
+  print("Contents mean: {}".format(Outp.numpy().mean()))
 StyleTargets = extractor(StyleImage)['style']
 ContentTargets = extractor(ContentImage)['content']
 Image = tf.Variable(ContentImage)
@@ -135,15 +163,15 @@ Image = tf.Variable(ContentImage)
 start = time.time()
 epochs = args.epoch
 steps_per_epoch = args.steps_per_epoch
-
+print("\n Training:")
 step = 0
 for n in range(epochs):
   for m in range(steps_per_epoch):
     step += 1
     train_step(Image)
     print("*", end='', flush=True)
-  print("Train step: {}".format(step))
+  print("Training step: {}".format(step))
 SaveImage(TensorToImage(Image), './training/StyledContent.png')
 end = time.time()
-print("Total time: {}".format(end-start))
+print("Training Complete! Total time: {}".format(end-start))
 
