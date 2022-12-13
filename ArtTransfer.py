@@ -171,7 +171,7 @@ for n in range(epochs):
     train_step(Image)
     print("*", end='', flush=True)
   print("Training step: {}".format(step))
-SaveImage(TensorToImage(Image), './training/StyledContent.png')
+SaveImage(TensorToImage(Image), 'StyledContent.png')
 end = time.time()
 print("Training Complete! Total time: {}".format(end-start))
 
